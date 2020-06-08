@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+    <div><h1  id="countdown">60:00</h1></div>
+    <button onclick="emit('toggle')">play/pause</button>
+    <button onclick="emit('relative', '-'+60*document.getElementById('time_adjust').value);">--</button>
+    <button onclick="emit('relative', '-'+document.getElementById('time_adjust').value);">-</button>
+    <textarea id="time_adjust">1</textarea>
+    <button onclick="emit('relative', document.getElementById('time_adjust').value);">+</button>
+    <button onclick="emit('relative', 60*document.getElementById('time_adjust').value);">++</button>
+
+    <textarea id="cluebox"></textarea><button onclick="emit('textclue', document.getElementById('cluebox').value)"> send clue</button>
+    <button onclick="emit('silentclue', document.getElementById('cluebox').value)"> silent update</button>
+    {% for clue in clues %}
+      <img id="{{clue.id}}" src="static/clues/{{ clue.src }}" onclick="emit('imgclue', '{{clue.src}}'); console.log('{{clue.id}}')" style="max-width: 10%; height: auto; cursor: pointer"/>
+    {% endfor %}
+</body>
+<script src="static/paho-mqtt.js"></script>
+<script src="static/EventBus.js"></script>
+<script>
+    const client = new Paho.Client(location.hostname, 8080, "clientId2");
+    client.connect({onSuccess:onConnect});
+
+        function emit(topic, payload) {
+            message = new Paho.Message(payload);
+            message.destinationName = topic;
+            client.send(message);
+        }
+    // called when the client connects
+    function onConnect() {
+        // Once a connection has been made, make a subscription and send a message.
+        console.log("onConnect");
+        client.onMessageArrived = onMessageArrived;
+
+
+        // called when a message arrives
+        function onMessageArrived(message) {
+            console.log("onMessageArrived:" + message.payloadString);
+            EventBus.dispatch(message.destinationName, this, message)
+        }
+
+        function setupListener(topic, func) {
+            EventBus.addEventListener(topic, func);
+            client.subscribe(topic);
+        }
+
+        function onTimer(e, message) {
+            document.getElementById("countdown").innerHTML = message.payloadString;
+        }
+
+        setupListener("timer", onTimer);
+
+    }
+</script>
+</html>

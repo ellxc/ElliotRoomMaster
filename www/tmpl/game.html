@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <style>
+        body {
+            background-image: url("static/backgrounds/temple.jpg");
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            background-position: center;
+            background-size: 100% 100%;
+            background-color: #cccccc;
+        }
+
+        h1 {
+            font-family: helvetica;
+            font-size: 200px;
+            -webkit-text-stroke: 4px black;
+            color: white;
+        }
+
+        h2 {
+            font-family: helvetica;
+            font-size: 14.5vw;
+            -webkit-text-stroke: 3px black;
+            color: white;
+        }
+
+        .center {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  width: 50%;
+}
+
+    </style>
+</head>
+<body>
+<div><h1  id="countdown">60:00</h1></div>
+<h2 id="clue"></h2>
+</body>
+<script src="static/paho-mqtt.js"></script>
+<script src="static/EventBus.js"></script>
+<script>
+    const client = new Paho.Client(location.hostname, 8080, "clientId");
+    client.connect({onSuccess: onConnect});
+
+    // called when the client connects
+    function onConnect() {
+        // Once a connection has been made, make a subscription and send a message.
+        console.log("onConnect");
+    client.onMessageArrived = onMessageArrived;
+
+        // called when a message arrives
+        function onMessageArrived(message) {
+            console.log("onMessageArrived: " + message.destinationName + " "+ message.payloadString);
+            EventBus.dispatch(message.destinationName, this, message)
+        }
+
+        function setupListener(topic, func) {
+            EventBus.addEventListener(topic, func);
+            client.subscribe(topic);
+        }
+
+        function onTimer(e, message) {
+            document.getElementById("countdown").innerHTML = message.payloadString;
+        }
+
+        setupListener("timer", onTimer);
+
+        function onTextClue(e, message) {
+            var clu = document.getElementById("clue");
+            clu.innerHTML = message.payloadString;
+            clu.style.fontSize = 100 / (message.payloadString.length + 2) * 2 + "vw";
+        }
+
+        setupListener("textclue", onTextClue);
+
+        function onImgClue(e, message) {
+            var clu = document.getElementById("clue");
+            clu.innerHTML = '<img class="center" style="height: 60%; width: auto" src="static/clues/' + message.payloadString + '"/>';
+        }
+        setupListener("imgclue", onImgClue);
+    }
+/*
+
+    socket.on('time', (data) => {
+      document.getElementById("countdown").innerHTML = data;
+    });
+    socket.on('clue', (data) => {
+        console.log(data);
+        var clu =  document.getElementById("clue");
+        clu.innerHTML = data;
+        clu.style.fontSize = 100/(data.length+2)*2+"vw";
+    });
+    socket.on('silentclue', (data) => {
+        console.log(data);
+        var clu =  document.getElementById("clue");
+        clu.innerHTML = data;
+        clu.style.fontSize = 100/(data.length+2)*2+"vw";
+    });
+    socket.on('imgclue', (data) => {
+        console.log(data);
+        var clu =  document.getElementById("clue");
+        clu.innerHTML = '<img class="center" style="height: 60%; width: auto" src="static/clues/' +data +'"/>';
+    });
+
+ */
+</script>
+</html>
