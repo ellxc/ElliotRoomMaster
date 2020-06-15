@@ -59,15 +59,15 @@
         }
 
         function setupListener(topic, func) {
-            EventBus.addEventListener(topic, func);
-            client.subscribe(topic);
+            EventBus.addEventListener("game/"+topic, func);
+            client.subscribe("game/"+topic);
         }
 
         function onTimer(e, message) {
             document.getElementById("countdown").innerHTML = message.payloadString;
         }
 
-        setupListener("timer", onTimer);
+        setupListener("timer/current", onTimer);
 
         function onTextClue(e, message) {
             var clu = document.getElementById("clue");
@@ -75,13 +75,13 @@
             clu.style.fontSize = 100 / (message.payloadString.length + 2) * 2 + "vw";
         }
 
-        setupListener("textclue", onTextClue);
+        setupListener("clue/text", onTextClue);
 
         function onImgClue(e, message) {
             var clu = document.getElementById("clue");
             clu.innerHTML = '<img class="center" style="height: 60%; width: auto" src="static/clues/' + message.payloadString + '"/>';
         }
-        setupListener("imgclue", onImgClue);
+        setupListener("clue/img", onImgClue);
     }
 /*
 

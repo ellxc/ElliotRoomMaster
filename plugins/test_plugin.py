@@ -1,25 +1,35 @@
-from wrappers import plugin, cron, service, onMqtt
+from wrappers import plugin, cron, service, onMqtt, www
 import asyncio
+import logging
+from main import ERM
 
-@plugin
+
+#@plugin
 class myPlugin:
+    def __init__(self, e: ERM):
+        self.e = e
 
-
-    @cron("*/1 * * * * * *")
+    #@cron("*/1 * * * * * *")
     def foo(self):
-        print ("hello every second")
+        logging.info("hello every second")
 
-    @cron("*/3 * * * * * *")
+    @cron("*/3 * * * * * *", runlevel=1)
     def foo1(self):
-        print("hello every three seconds")
+        logging.info("hello every three seconds")
 
-    @service
+    @cron("*/2 * * * * * *")
+    def foo3(self):
+        logging.info("hello every two second")
+
+    @service(runlevel=1)
     async def bar(self):
         x = 20
         while x > 1:
             await asyncio.sleep(1)
             print("hello from a service")
             x -= 1
+
+
 
 
     #@onMqtt("timer")
