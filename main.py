@@ -16,7 +16,8 @@ import importlib
 from collections import ChainMap
 import os
 import itertools
-
+from props.relayboard import relayboard
+from props.prop import Button, prop
 Plugin = namedtuple('plugin', ['instance', 'crons', 'mqtts', 'services'])
 
 async def foo():
@@ -27,10 +28,10 @@ class ERM:
         'listeners': {
             'default': {
                 'type': 'tcp',
-                'bind': '127.0.0.1:1883',
+                'bind': '192.168.1.121:1883',
             },
             'ws-mqtt': {
-                'bind': '127.0.0.1:8080',
+                'bind': '192.168.1.121:8080',
                 'type': 'ws',
             },
         },
@@ -68,6 +69,7 @@ class ERM:
         # self.crons = {"foo": (crontab.CronTab("*/1 * * * * * *"), [foo])}
         self.tosub = []
         self.plugins = {}
+        self.props = {'relayboard': relayboard('relayboard', 16), "lights": prop("lights", buttons=[Button("turn off", "lights/off", "", "turn the lights off!")])}
 
     @property
     def crons(self):
@@ -130,7 +132,7 @@ class ERM:
     async def connectMQTT(self):
         while not self.broker.transitions.is_state("started", self.broker.transitions.model):
             await asyncio.sleep(1)
-        await self.MQTT.connect('mqtt://localhost')
+        await self.MQTT.connect('mqtt://192.168.1.121')
 
     async def mqtt_in(self):
         try:
@@ -143,7 +145,7 @@ class ERM:
                 message = await self.MQTT.deliver_message()
                 packet = message.publish_packet
                 _, _, topic = packet.variable_header.topic_name.partition("/")
-                logging.debug("%s %s => %s" % (packet.variable_header.topic_name, topic, str(packet.payload.data)))
+                logging.info("%s %s => %s" % (packet.variable_header.topic_name, topic, str(packet.payload.data)))
                 if topic in self.mqtts:
                     for _, f in self.mqtts[topic]:
                         self.loop.create_task(f(message))

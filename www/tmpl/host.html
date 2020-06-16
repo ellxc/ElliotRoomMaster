@@ -19,6 +19,13 @@
     {% for clue in clues %}
       <img id="{{clue.id}}" src="static/clues/{{ clue.src }}" onclick="emit('clue/img', '{{clue.src}}'); console.log('{{clue.id}}')" style="max-width: 10%; height: auto; cursor: pointer"/>
     {% endfor %}
+
+    {% for prop in props %}
+     <div></div>
+     {{prop|safe}}
+    {% endfor %}
+
+    <button onclick="emit('lights/toggle', '');">lights</button>
 </body>
 <script src="static/paho-mqtt.js"></script>
 <script src="static/EventBus.js"></script>

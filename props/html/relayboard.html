@@ -1,0 +1,12 @@
+{% extends "prop-template.html" %}
+{% block content %}
+{{ super() }}
+    <table>
+{% for i in range(prop.relays|length) %}
+    <TR>
+       <TD>{{prop.relays[i].name}}</TD>
+       <TD><button onclick="emit('relay/toggle', '{{prop.relays[i].pin}}');">toggle</button></TD>
+    </TR>
+{% endfor %}
+    </table>
+{% endblock %}
