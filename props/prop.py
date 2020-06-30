@@ -1,8 +1,24 @@
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from dataclasses import dataclass
 
-Button = namedtuple('Button', ['name', 'topic', 'data', 'description'])
+#Button = namedtuple('Button', ['name', 'topic', 'data', 'description'])
+
+@dataclass
+class Button:
+    name: str
+    topic: str = ""
+    data: str = ""
+    description: str = ""
+    code: str = ""
+
+    @property
+    def onclick(self) -> str:
+        if self.code:
+            return self.code
+        else:
+            return "emit('{topic}', '{data}');".format(topic=self.topic, data=self.data)
 
 env = Environment(
     loader=FileSystemLoader('./props/html')

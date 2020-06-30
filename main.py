@@ -18,6 +18,8 @@ import os
 import itertools
 from props.relayboard import relayboard
 from props.prop import Button, prop
+import yaml
+
 Plugin = namedtuple('plugin', ['instance', 'crons', 'mqtts', 'services'])
 
 async def foo():
@@ -69,7 +71,41 @@ class ERM:
         # self.crons = {"foo": (crontab.CronTab("*/1 * * * * * *"), [foo])}
         self.tosub = []
         self.plugins = {}
-        self.props = {'relayboard': relayboard('relayboard', 16), "lights": prop("lights", buttons=[Button("turn off", "lights/off", "", "turn the lights off!")])}
+        self.props = {}
+        self.loadconfig()
+        #self.props = {'relayboard': relayboard('relayboard', relays=16), "lights": prop("lights", buttons=[Button("turn off", "lights/off", "", "turn the lights off!")])}
+
+    def loadconfig(self, file="config.yml"):
+        config = yaml.full_load(open(file, 'rb').read())
+        print(config)
+        if "props" in config:
+            propname: str
+            propconfig: dict
+            for propname, propconfig in config["props"].items():
+                buttons = []
+                if "buttons" in propconfig:
+                    b: dict
+                    for b in propconfig["buttons"]:
+                        but = Button(**b)
+                        buttons.append(but)
+
+                if "type" in propconfig:
+                    if propconfig["type"] == "relayboard":
+                        topic = propconfig.get("topic-header", "relay")
+                        relay_num = propconfig.get("number", 8)
+                        names = propconfig.get("relays", [])
+
+                        self.props[propname] = relayboard(propname, topic=topic, relays=relay_num, names_descriptions=names, buttons=buttons)
+                    else:
+                        if propconfig.get("type", "default") != "default":
+                            template: str = propconfig["type"]
+                            if not template.endswith(".html"):
+                                template += ".html"
+                            self.props[propname] = prop(propname, buttons=buttons, template_file=template)
+                        else:
+                            self.props[propname] = prop(propname, buttons=buttons)
+
+
 
     @property
     def crons(self):

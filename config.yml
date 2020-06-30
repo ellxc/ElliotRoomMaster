@@ -1,0 +1,56 @@
+props:
+  fire:
+    type: lighting
+    buttons:
+      - name: lights on
+        topic: fire/control
+        data: "on"
+        description: turn the fire on
+      - name: lights off
+        topic: fire/control
+        data: "off"
+        description: turn the fire off
+  lights:
+    type: default
+    buttons:
+      - name: lights on
+        topic: lights/control
+        data: "on"
+        description: turn the main lights on
+      - name: lights off
+        topic: lights/control
+        data: "off"
+        description: turn the main lights off
+  relay:
+    type: relayboard
+    topic-header: relay
+    number: 16
+    relays: !!omap
+      - fire: the fire pit in the middle of the room!
+      - slide door: allows access to the slide
+      - cupboard: opens the cupboard!
+      - hidden brick: release the brick
+      - puzzle 1: unnamed puzzle
+      - main teleporter: pew
+      - mouth: yawn
+      - bees: not the beads
+      - backup generator: reroute the power through the secondary systems
+      - escape door: let them escape
+      - smoke: blaze it
+      - tazers: taze it
+      - lasers: laze it
+      - tigers: die
+      - buzzers: baze it
+      - example: foo
+    buttons:
+      - name: do stuff
+        description: do the thing
+        code: "alert('I am an alert box!');"
+      - name: do more stuff
+        description: do the thing
+        code: >
+          if (confirm("Press a button!")) {
+          alert("You pressed OK!");
+          } else {
+          alert("You pressed Cancel!");
+          }

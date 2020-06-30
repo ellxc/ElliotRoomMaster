@@ -2,7 +2,7 @@
     <legend>{% block legend %}{{prop.name}}{% endblock %}</legend>
     {% block content %}
         {% for b in prop.buttons %}
-            <button title="{{b.description}}" onclick="emit('{{b.topic}}', '{{b.data}}');">{{b.name}}</button>
+            <button title="{{b.description}}" onclick='{{b.onclick|e}}'>{{b.name}}</button>
         {% endfor %}
     {% endblock %}
 </fieldset>

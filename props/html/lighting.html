@@ -1,0 +1,92 @@
+<fieldset id="poo" legend="{{prop.name}}">
+    <script src="static/iro.js"></script>
+    <link href="static/nouislider.css" rel="stylesheet">
+    <script src="static/noUiSlider.js"></script>
+    <legend>{% block legend %}{{prop.name}}{% endblock %}</legend>
+    {% block content %}
+    <section>
+        {% for b in prop.buttons %}
+            <button title="{{b.description}}" onclick='{{b.onclick|e}}'>{{b.name}}</button>
+        {% endfor %}
+    </section>
+
+    <section style="float: left">
+    {% include 'palettepicker.html' %}
+    </section>
+
+    <section style="float: right">
+        <fieldset id="batbox">
+            <legend>torch status</legend>
+        </fieldset>
+    </section>
+
+    <script>
+        function ensure_torch(id){
+            counters[id] = sec;
+            var foo = document.getElementById(id);
+            if (foo === null){
+                var bar = document.createElement("template");
+                bar.innerHTML = "<div id=\"" + id + "\">\n" +
+                    "                <span style='float: left'>torch: "+ id + "</span><span class='status'></span><span class='timer' data-id='"+id+"' style='float: right'>seen <span class=\"minutes\">00</span>:<span class=\"seconds\">00</span> ago</span>" +
+                    "                <div>\n" +
+                    "                    <div style=\"float: left; width: 150px; background-color: #ddd; height: 30px\">\n" +
+                    "                        <div style=\"width: 10%; background-color: #4caf50; text-align: center; line-height: 30px; color: white\" class=\"lightlevel\">10%</div>\n" +
+                    "                    </div>\n" +
+                    "                    <div style=\"float: right; width: 150px; background-color: #ddd; height: 30px\">\n" +
+                    "                        <div style=\"width: 70%; background-color: #4caf50; text-align: center; line-height: 30px; color: white\" class=\"battlevel\">10%</div>\n" +
+                    "                    </div>\n" +
+                    "                </div>\n" +
+                    "            </div>";
+                foo = document.getElementById("batbox").appendChild(bar.content.firstChild)
+            }
+            return foo;
+        }
+
+        var sec = 0;
+        counters = {};
+        function pad ( val ) { return val > 9 ? val : "0" + val; }
+        setInterval( function(){
+            sec++;
+            Array.from(document.getElementsByClassName("timer")).forEach((els) => {
+                var t = sec - counters[els.getAttribute("data-id")];
+                els.getElementsByClassName("seconds")[0].innerHTML=pad(t%60);
+                els.getElementsByClassName("minutes")[0].innerHTML=pad(parseInt(t/60,10));
+            });
+        }, 1000);
+
+        function ontorchbat(message) {
+            var foo = ensure_torch(message.destinationName.split("/")[2]);
+
+
+            var battbar = foo.getElementsByClassName("battlevel")[0];
+            battbar.style.width = parseInt(message.payloadString) + "%";
+            battbar.innerText = parseInt(message.payloadString) + "%";
+            var status = foo.getElementsByClassName("status")[0];
+            status.innerText = ""
+        }
+
+        function ontorchlevel(message) {
+            var foo = ensure_torch(message.destinationName.split("/")[2]);
+
+            var lightbar = foo.getElementsByClassName("lightlevel")[0];
+            lightbar.style.width = (parseInt(message.payloadString)/255) * 100 + "%";
+            lightbar.innerText = Math.round((parseInt(message.payloadString)/255) * 100) + "%";
+            var status = foo.getElementsByClassName("status")[0];
+            status.innerText = ""
+        }
+
+        function ontorchdisconnect(message){
+            var foo = ensure_torch(message.destinationName.split("/")[2]);
+
+            var status = foo.getElementsByClassName("status")[0];
+            status.innerText = " disconnected!"
+
+        }
+
+        tolisten.push(["torch/+/batt", ontorchbat]);
+        tolisten.push(["torch/+/level", ontorchlevel]);
+        tolisten.push(["torch/+/disconnect", ontorchdisconnect]);
+
+    </script>
+    {% endblock %}
+</fieldset>

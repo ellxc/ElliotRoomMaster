@@ -1,0 +1,211 @@
+<button onclick="showhide()">show/hide</button>
+<div class="picker"></div>
+<button class="removecolor" onclick="removecolor()">-</button>
+<button class="addcolor" onclick="addcolor()">+</button>
+
+<div></div>
+<canvas class="grad" width="auto" height="10"></canvas>
+<div></div>
+<div class="slider" style="width: 300px"></div>
+<script>
+        var scriptTag = document.getElementsByTagName('script');
+        scriptTag = scriptTag[scriptTag.length - 1];
+        var parentTag = scriptTag.parentNode;
+        var colorpicker_container = parentTag.getElementsByClassName("picker")[0];
+        var colorPicker = new iro.ColorPicker(colorpicker_container);
+        var removebtn = parentTag.getElementsByClassName("removecolor")[0];
+        var addbtn = parentTag.getElementsByClassName("addcolor")[0];
+
+
+        removebtn.disabled = true;
+
+
+        var c = parentTag.getElementsByClassName("grad")[0];
+        var ctx = c.getContext("2d");
+
+        ctx.canvas.width = 300;
+
+        var slider = parentTag.getElementsByClassName("slider")[0];
+
+        var showing = true;
+
+         function showhide(){
+             showing = !showing;
+             var foo = [colorpicker_container, addbtn, removebtn, slider];
+             foo.forEach(e => e.style.display = showing ? "block" : "none");
+         }
+
+         showhide();
+
+
+
+        noUiSlider.create(slider, {
+            start: [0],
+            step: 1,
+            range: {
+                'min': 0,
+                'max': 255
+            }
+        });
+
+        function makeslider(points){
+            console.log("points: " + String(points));
+            var settings = {
+            start: points,
+            step: 1,
+            range: {
+                'min': 0,
+                'max': 255
+            }
+            };
+            slider.noUiSlider.destroy();
+            noUiSlider.create(slider, settings);
+            slider.noUiSlider.on('update.one', updatedisplay);
+            slider.noUiSlider.on('end.one', sendupdate);
+        }
+
+
+
+
+        function addcolor() {
+            var points = slider.noUiSlider.get();
+            if (Array.isArray(points)){
+                var np = [];
+                points.forEach(p => np.push(parseInt(p)));
+                np.push(255);
+                points = np;
+            }
+            else {
+                points = [parseInt(points)];
+                points.push(255);
+            }
+            console.log(points);
+
+            makeslider(points);
+
+            colorPicker.addColor('rgb(100%, 100%, 100%)');
+            removebtn.disabled = false;
+            if (colorPicker.colors.length === 16){ addbtn.disabled = true}
+            colorPicker.setActiveColor(colorPicker.colors.length-1);
+            updatedisplay();
+            sendupdate();
+
+        }
+
+        function removecolor() {
+           addbtn.disabled = false;
+            colorPicker.removeColor(colorPicker.colors.length-1);
+            if (colorPicker.colors.length === 1){ removebtn.disabled = true}
+
+            var points = slider.noUiSlider.get();
+            if (Array.isArray(points)){
+                var np = [];
+                points.forEach(p => np.push(parseInt(p)));
+                points = np;
+            }
+            else {
+                points = [parseInt(points)];
+            }
+
+            points.pop();
+
+            makeslider(points);
+            updatedisplay();
+            sendupdate();
+        }
+
+        function updatedisplay(){
+            var grd = ctx.createLinearGradient(0, 0, ctx.canvas.width, ctx.canvas.height);
+            grd.addColorStop(1, "black");
+            var r = colorPicker.colors.slice();
+            var points = slider.noUiSlider.get();
+            if (Array.isArray(points)){
+                var np = [];
+                points.forEach(p => np.push(parseInt(p)));
+                points = np;
+            }
+            else {
+                points = [parseInt(points)];
+            }
+            var s = points;
+            var i;
+            for (i = 0; i < r.length; i++){
+                grd.addColorStop(s[i]/255, r[i].hexString);
+            }
+            ctx.fillStyle = grd;
+            ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        }
+
+        colorPicker.on('input:end', updatedisplay);
+        colorPicker.on('input:end', sendupdate);
+        slider.noUiSlider.on('change.one', updatedisplay);
+        slider.noUiSlider.on('end.one', sendupdate);
+
+        function sendupdate(){
+            var colours = [0,0,0,0];
+            var i = 0;
+            var r = colorPicker.colors.slice();
+            var points = slider.noUiSlider.get();
+            if (Array.isArray(points)){
+                var np = [];
+                points.forEach(p => np.push(parseInt(p)));
+                points = np;
+            }
+            else {
+                points = [parseInt(points)];
+            }
+            r.reverse().forEach(colour => {
+                i = i + 1;
+                colours.push(255 - points[points.length - i]);
+                colours.push(colour.rgb.r);
+                colours.push(colour.rgb.g);
+                colours.push(colour.rgb.b);
+            });
+            if (colours[colours.length-4] !== 255){
+                colours.push(255);
+                colours.push(colours[colours.length-4]);
+                colours.push(colours[colours.length-4]);
+                colours.push(colours[colours.length-4]);
+            }
+            var t = new Uint8Array(colours);
+            //var t = colorPicker.colors.map(c => [c.rgb.r, c.rgb.g, c.rgb.b].map(d => d & 0xFF).join("")).join(",");
+           // console.log(t);
+            emit('fire/colour', t, qos=2, retained=true);
+        }
+
+
+
+        function showcurrent(message){
+            var f = Array.from(new Uint8Array(message.payloadBytes));
+
+            var cols = [];
+            var locs = [];
+
+            while (f.length > 0) {
+                let loc = f.shift();
+                let r = f.shift();
+                let g = f.shift();
+                let b = f.shift();
+                cols.push([loc, r, g, b]);
+                console.log([loc, r, g, b]);
+            }
+            if (cols[cols.length-1][0] === 255 && cols[cols.length-1][1] === cols[cols.length-2][1] && cols[cols.length-1][2] === cols[cols.length-1][2] && cols[cols.length-1][3] === cols[cols.length-2][3]){
+                cols.pop();
+            }
+
+            cols = cols.slice(1,cols.length);
+            console.log(String(cols));
+            colorPicker.colors = [];
+            while (cols.length > 0){
+                let [loc, r, g, b] = cols.pop();
+                colorPicker.addColor({r:r, g:g, b:b});
+                locs.push(255-loc);
+            }
+            colorPicker.setActiveColor(colorPicker.colors.length-1);
+            console.log("locs: " + locs);
+            makeslider(locs);
+            updatedisplay();
+        }
+
+        tolisten.push(["fire/colour", showcurrent]);
+</script>
