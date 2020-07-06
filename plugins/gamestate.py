@@ -21,11 +21,11 @@ class myPlugin2:
             await self.e.MQTT.publish('game/timer/current', "{:02d}:{:02d}".format(int(minutes), int(seconds)).encode(), qos=QOS_2)
             await asyncio.sleep(1)
 
-    @onMqtt('timer/current', qos=QOS_2)
+    @onMqtt('timer/current')
     async def time(self, message):
         pass
 
-    @onMqtt('timer/relative', qos=QOS_2)
+    @onMqtt('timer/relative')
     async def rel(self, message):
         packet = message.publish_packet
         d: bytearray = packet.payload.data

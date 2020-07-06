@@ -17,19 +17,11 @@
 
     <textarea id="cluebox"></textarea><button onclick="emit('clue/text', document.getElementById('cluebox').value)"> send clue</button>
     <button onclick="emit('clue/silent', document.getElementById('cluebox').value)"> silent update</button>
-    {% if clues|length > 0 %}
-    <div></div>
-    <fieldset>
-    <legend>clues</legend>
-    {% for clue in clues %}
-      <img id="{{clue.id}}" src="static/clues/{{ clue.src }}" onclick="emit('clue/img', '{{clue.src}}'); console.log('{{clue.id}}')" style="max-width: 10%; height: auto; cursor: pointer"/>
-    {% endfor %}
-    </fieldset>
-    {% endif %}
 
-    {% for prop in props %}
+
+    {% for control in controls %}
      <div></div>
-     {{prop|safe}}
+     {{control|safe}}
     {% endfor %}
 </body>
 <script src="static/paho-mqtt.js"></script>

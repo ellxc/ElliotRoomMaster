@@ -1,4 +1,31 @@
-props:
+speakers:
+  outputs:
+    - one
+    - two
+    - three
+    - four
+    - five
+    - six
+    - seven
+    - eight
+    - nine
+    - ten
+    - twelve
+    - thirteen
+    - fourteen
+    - fifteen
+    - sixteen
+  groups: !!omap
+    - downstairs: [one, two, three, four]
+    - ramp: [five]
+    - upstairs: [six, seven, eight]
+    - soundtrack: [downstairs, upstairs, ramp]
+    - bigguy: [two, downstairs]
+controls:
+  imgclues:
+    type: clues
+  sounds:
+    type: sounds
   fire:
     type: lighting
     buttons:
@@ -11,7 +38,6 @@ props:
         data: "off"
         description: turn the fire off
   lights:
-    type: default
     buttons:
       - name: lights on
         topic: lights/control

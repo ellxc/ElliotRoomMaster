@@ -1,0 +1,6 @@
+<fieldset>
+    <legend>clues</legend>
+    {% for clue in clues %}
+      <img id="{{clue.id}}" src="static/clues/{{ clue.src }}" onclick="emit('clue/img', '{{clue.src}}'); console.log('{{clue.id}}')" style="max-width: 10%; height: auto; cursor: pointer"/>
+    {% endfor %}
+</fieldset>

@@ -1,7 +1,7 @@
-<fieldset legend="{{prop.name}}">
-    <legend>{% block legend %}{{prop.name}}{% endblock %}</legend>
+<fieldset>
+    <legend>{% block legend %}{{this.name}}{% endblock %}</legend>
     {% block content %}
-        {% for b in prop.buttons %}
+        {% for b in this.buttons %}
             <button title="{{b.description}}" onclick='{{b.onclick|e}}'>{{b.name}}</button>
         {% endfor %}
     {% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+{{ super() }}
+
+    <button onclick='if (confirm("are you sure?!")){emit("{{this.topic}}/on", "all");}'>reset</button>
+    <button onclick='if (confirm("are you sure?!")){emit("{{this.topic}}/off", "all");}'>fire all</button>
+    <table>
+{% for i in range(this.relays|length) %}
+    <TR>
+       <TD>{{this.relays[i].name}}</TD>
+       <TD><button class="togglebutton" onclick="emit('{{this.topic}}/toggle', '{{this.relays[i].pin}}');">toggle</button></TD>
+        <TD>{{this.relays[i].description}}</TD>
+    </TR>
+{% endfor %}
+        <script>
+            function relaystate(e, message) {
+            let buttons = document.getElementsByClassName("togglebutton");
+            for (let i = 0; i < buttons.length ; i++) {
+                let button = buttons[i];
+                if (message.payloadString[i] === "0"){
+                    button.style.background='#000000';
+                }
+                else {
+                    button.style.background='#ffffff';
+                }
+            }
+            }
+            tolisten.push(["{{this.topic}}/state", relaystate]);
+        </script>
+    </table>
+{% endblock %}

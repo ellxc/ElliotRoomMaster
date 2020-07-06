@@ -4,36 +4,39 @@ import jinja2
 import aiohttp_jinja2
 from hbmqtt.broker import Broker
 import logging
-import random
 import datetime
-import os
 from collections import namedtuple
 from hbmqtt.client import MQTTClient, ClientException
-from hbmqtt.mqtt.constants import QOS_1, QOS_2
+from hbmqtt.mqtt.constants import QOS_2
 import crontab
 import inspect
 import importlib
 from collections import ChainMap
 import os
-import itertools
-from props.relayboard import relayboard
-from props.prop import Button, prop
 import yaml
+from soundsystem import JackNPlayer
+import re
+from dataclasses import dataclass
 
-Plugin = namedtuple('plugin', ['instance', 'crons', 'mqtts', 'services'])
 
-async def foo():
-    print("hi")
+@dataclass
+class Plugin:
+    instance: object
+    crons: dict
+    mqtts: dict
+    services: dict
+    regexes: list
+
 
 class ERM:
     broker_config = {
         'listeners': {
             'default': {
                 'type': 'tcp',
-                'bind': '192.168.1.121:1883',
+                'bind': '192.168.1.63:1883',
             },
             'ws-mqtt': {
-                'bind': '192.168.1.121:8080',
+                'bind': '192.168.1.63:8080',
                 'type': 'ws',
             },
         },
@@ -71,40 +74,54 @@ class ERM:
         # self.crons = {"foo": (crontab.CronTab("*/1 * * * * * *"), [foo])}
         self.tosub = []
         self.plugins = {}
-        self.props = {}
-        self.loadconfig()
-        #self.props = {'relayboard': relayboard('relayboard', relays=16), "lights": prop("lights", buttons=[Button("turn off", "lights/off", "", "turn the lights off!")])}
+        self.controlviews = {}
+        self.controls = {}
+        self.player = JackNPlayer()
+        self.speakers = []
+        self.speakergroups = {}
+        self.config = {}
+        #self.controls = {'relayboard': relayboard('relayboard', relays=16), "lights": prop("lights", buttons=[Button("turn off", "lights/off", "", "turn the lights off!")])}
 
     def loadconfig(self, file="config.yml"):
-        config = yaml.full_load(open(file, 'rb').read())
-        print(config)
-        if "props" in config:
-            propname: str
-            propconfig: dict
-            for propname, propconfig in config["props"].items():
-                buttons = []
-                if "buttons" in propconfig:
-                    b: dict
-                    for b in propconfig["buttons"]:
-                        but = Button(**b)
-                        buttons.append(but)
+        self.config = yaml.full_load(open(file, 'rb').read())
 
-                if "type" in propconfig:
-                    if propconfig["type"] == "relayboard":
-                        topic = propconfig.get("topic-header", "relay")
-                        relay_num = propconfig.get("number", 8)
-                        names = propconfig.get("relays", [])
+        if "speakers" in self.config:
+            print(self.config["speakers"])
 
-                        self.props[propname] = relayboard(propname, topic=topic, relays=relay_num, names_descriptions=names, buttons=buttons)
-                    else:
-                        if propconfig.get("type", "default") != "default":
-                            template: str = propconfig["type"]
-                            if not template.endswith(".html"):
-                                template += ".html"
-                            self.props[propname] = prop(propname, buttons=buttons, template_file=template)
+            if "outputs" in self.config["speakers"]:
+                self.speakers = self.config["speakers"]["outputs"]
+
+            if "groups" in self.config["speakers"]:
+                for group, speakers in self.config["speakers"]["groups"]:
+                    seen = set()
+                    for s in speakers:
+                        if s in self.speakergroups:
+                            for x in self.speakergroups[s]:
+                                seen.add(x)
+                        elif s in self.speakers:
+                            seen.add(s)
                         else:
-                            self.props[propname] = prop(propname, buttons=buttons)
+                            print("unknown speaker or group:", s)
+                    self.speakergroups[group] = list(seen)
 
+        print(self.speakergroups)
+
+        if "controls" in self.config:
+            controlname: str
+            controlconfig: dict
+            for controlname, controlconfig in self.config["controls"].items():
+
+                type = controlconfig.get("type", "base")
+                if type in self.controlviews:
+                    self.controls[controlname] = self.controlviews[type](controlname, e=self, **controlconfig)
+                else:
+                    template = type if type.endswith(".html") else type+".html"
+                    del controlconfig["type"]
+                    if os.path.exists(os.path.dirname(os.path.abspath(__file__)) + "/controls/html/" + template):
+                        print(controlconfig)
+                        self.controls[controlname] = self.controlviews["base"](controlname, template_file=template, e=self, **controlconfig)
+                    else:
+                        print("unknown control type: ", type)
 
 
     @property
@@ -117,7 +134,18 @@ class ERM:
 
     @property
     def services(self):
-        return [print(x) or x[1] for p in self.plugins.values() for k in p.services.values() for x in k]
+        return [x[1] for p in self.plugins.values() for k in p.services.values() for x in k]
+
+    @property
+    def regexes(self):
+        return [(r, f) for p in self.plugins.values() for r, f in p.regexes]
+
+    def load_control_view(self, filename):
+        temp = importlib.machinery.SourceFileLoader(filename, os.path.dirname(
+            os.path.abspath(__file__)) + "/controls/" + filename).load_module()
+        for name, Class in inspect.getmembers(temp, lambda x: inspect.isclass(x) and hasattr(x, "_cv")):
+            print("found control view:", name)
+            self.controlviews[name] = Class
 
     def load_plugin_file(self, plugin):
         handlers = []
@@ -137,6 +165,7 @@ class ERM:
         mqtts = {}
         services = {}
         www = {}
+        regexes = []
         instance = plugin(self)
         for _, func in inspect.getmembers(instance):
             if hasattr(func, "_crons"):
@@ -148,10 +177,17 @@ class ERM:
                             [c, now + datetime.timedelta(seconds=c.next(now=datetime.datetime.utcnow(), default_utc=True)), []]
                     crons[cr][-1].append(func)
             if hasattr(func, "_topics"):
-                for t, qos in func._topics:
+                for t in func._topics:
                     if t not in mqtts:
                         mqtts[t] = []
-                    mqtts[t].append((qos, func))
+                    mqtts[t].append(func)
+            if hasattr(func, "_regexes"):
+                for pattern, flags in func._regexes:
+                    try:
+                        r = re.compile(pattern, flags)
+                        regexes.append((r, func))
+                    except Exception as e:
+                        print(type(e), e)
             if hasattr(func, '_services'):
                 for s in func._services:
                     if s not in services:
@@ -163,12 +199,12 @@ class ERM:
                         www[route] = func
                         self.app.router.add_get(route, func)
 
-        self.plugins[name] = Plugin(instance=instance, crons=crons, mqtts=mqtts, services=services)
+        self.plugins[name] = Plugin(instance=instance, crons=crons, mqtts=mqtts, services=services, regexes=regexes)
 
     async def connectMQTT(self):
         while not self.broker.transitions.is_state("started", self.broker.transitions.model):
             await asyncio.sleep(1)
-        await self.MQTT.connect('mqtt://192.168.1.121')
+        await self.MQTT.connect('mqtt://192.168.1.63')
 
     async def mqtt_in(self):
         try:
@@ -185,6 +221,10 @@ class ERM:
                 if topic in self.mqtts:
                     for _, f in self.mqtts[topic]:
                         self.loop.create_task(f(message))
+                for r, f in self.regexes:
+                    g = r.match(topic)
+                    if g is not None:
+                        self.loop.create_task(f(message, g))
         except Exception as e:
             print("error")
             print(e)
@@ -223,11 +263,17 @@ class ERM:
             if file.endswith(".py"):
                 print("file: " + file)
                 self.load_plugin_file(file)
+        for cv in os.listdir("controls"):
+            if cv.endswith(".py"):
+                self.load_control_view(cv)
+
+        self.loadconfig()
         self.loop.run_until_complete(self.start())
 
     async def start(self):
         try:
             tasks = [
+                     self.loop.create_task(self.player.run()),
                      self.loop.create_task(web._run_app(self.app, port=80)),
                      self.loop.create_task(self.broker.start()),
                      self.loop.create_task(self.mqtt_in()),

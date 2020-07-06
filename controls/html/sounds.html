@@ -1,0 +1,37 @@
+<fieldset>
+    <legend>sounds</legend>
+    {% for s in sounds %}
+        <button onclick="emit('sounds/clue/' + Array.from(document.getElementById('speakers').selectedOptions).map(x => x.value).join()  ,'{{s.src}}')">{{s.name}}</button>
+    {% endfor %}
+    <select name="groups" id="groups" size="{{speakergroups|length}}">
+    {% for spg, spks in speakergroups.items() %}
+        <option value="{{spg}}" onclick="choose(['{{spks|join('\',\'')}}'])">{{spg}}</option>
+    {% endfor %}
+    </select>
+    <select name="speakers" id="speakers" size="{{speakers|length}}" multiple>
+    {% for sp in speakers %}
+        <option onclick="document.getElementById('groups').value = ''" value="{{sp}}">{{sp}}</option>
+    {% endfor %}
+    </select>
+
+
+    <script>
+        function choose(toselect) {
+            document.getElementById('speakers')
+            var select = document.getElementById( 'speakers' );
+
+            for ( var i = 0, l = select.options.length, o; i < l; i++ )
+            {
+              o = select.options[i];
+              if ( toselect.indexOf( o.text ) != -1 )
+              {
+                o.selected = true;
+              }
+              else {
+                  o.selected = false;
+              }
+            }
+        }
+
+    </script>
+</fieldset>

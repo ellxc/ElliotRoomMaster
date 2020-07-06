@@ -611,7 +611,7 @@
   };
   /**
    * @desc Get the bounding dimensions of the slider
-   * @param props - slider props
+   * @param props - slider controls
    */
 
   function getSliderDimensions(props) {
@@ -649,7 +649,7 @@
   }
   /**
    * @desc Get the current slider value for a given color, as a percentage
-   * @param props - slider props
+   * @param props - slider controls
    * @param color
    */
 
@@ -681,7 +681,7 @@
   }
   /**
    * @desc Get the current slider value from user input
-   * @param props - slider props
+   * @param props - slider controls
    * @param x - global input x position
    * @param y - global input y position
    */
@@ -721,7 +721,7 @@
   }
   /**
    * @desc Get the current handle position for a given color
-   * @param props - slider props
+   * @param props - slider controls
    * @param color
    */
 
@@ -747,7 +747,7 @@
   }
   /**
    * @desc Get the gradient stops for a slider
-   * @param props - slider props
+   * @param props - slider controls
    * @param color
    */
 
@@ -804,7 +804,7 @@
   }
   /**
    * @desc Get the gradient coords for a slider
-   * @param props - slider props
+   * @param props - slider controls
    */
 
   function getSliderGradientCoords(props) {
@@ -819,7 +819,7 @@
 
   /**
    * @desc Get the point as the center of the wheel
-   * @param props - wheel props
+   * @param props - wheel controls
    */
   function getWheelDimensions(props) {
     var rad = props.width / 2;
@@ -832,7 +832,7 @@
   }
   /**
    * @desc Translate an angle according to wheelAngle and wheelDirection
-   * @param props - wheel props
+   * @param props - wheel controls
    * @param angle - input angle
    */
 
@@ -852,7 +852,7 @@
   }
   /**
    * @desc Get the current handle position for a given color
-   * @param props - wheel props
+   * @param props - wheel controls
    * @param color
    */
 
@@ -872,7 +872,7 @@
   }
   /**
    * @desc Get the current wheel value from user input
-   * @param props - wheel props
+   * @param props - wheel controls
    * @param x - global input x position
    * @param y - global input y position
    */
@@ -896,7 +896,7 @@
   }
   /**
    * @desc Get the bounding dimensions of the box
-   * @param props - box props
+   * @param props - box controls
    */
 
   function getBoxDimensions(props) {
@@ -911,7 +911,7 @@
   }
   /**
    * @desc Get the current box value from user input
-   * @param props - box props
+   * @param props - box controls
    * @param x - global input x position
    * @param y - global input y position
    */
@@ -933,7 +933,7 @@
   }
   /**
    * @desc Get the current box handle position for a given color
-   * @param props - box props
+   * @param props - box controls
    * @param color
    */
 
@@ -953,7 +953,7 @@
   }
   /**
    * @desc Get the gradient stops for a box
-   * @param props - box props
+   * @param props - box controls
    * @param color
    */
 
@@ -978,7 +978,7 @@
    * https://github.com/jaames/iro.js/issues/18
    * https://github.com/jaames/iro.js/issues/45
    * https://github.com/jaames/iro.js/pull/89
-   * @props url - SVG reference URL
+   * @controls url - SVG reference URL
    */
 
   function resolveSvgUrl(url) {
@@ -991,11 +991,11 @@
   }
   /**
    * @desc Get the path commands to draw an svg arc
-   * @props cx - arc center point x
-   * @props cy - arc center point y
-   * @props radius - arc radius
-   * @props startAngle - arc start angle
-   * @props endAngle - arc end angle
+   * @controls cx - arc center point x
+   * @controls cy - arc center point y
+   * @controls radius - arc radius
+   * @controls startAngle - arc start angle
+   * @controls endAngle - arc end angle
    */
 
   function getSvgArcPath(cx, cy, radius, startAngle, endAngle) {
@@ -1011,9 +1011,9 @@
   /**
    * @desc Given a specifc (x, y) position, test if there's a handle there and return its index, else return null.
    *       This is used for components like the box and wheel which support multiple handles when multicolor is active
-   * @props x - point x position
-   * @props y - point y position
-   * @props handlePositions - array of {x, y} coords for each handle
+   * @controls x - point x position
+   * @controls y - point y position
+   * @controls handlePositions - array of {x, y} coords for each handle
    */
 
   function getHandleAtPoint(props, x, y, handlePositions) {
@@ -1288,7 +1288,7 @@
   // Turn a component into a widget
   // This returns a factory function that can be used to create an instance of the widget component
   // The first function param is a DOM element or CSS selector for the element to mount to,
-  // The second param is for config options which are passed to the component as props
+  // The second param is for config options which are passed to the component as controls
   // This factory function can also delay mounting the element into the DOM until the page is ready
   function createWidget(WidgetComponent) {
       var widgetFactory = function (parent, props) {
@@ -1334,7 +1334,7 @@
           var colors = props.colors.length > 0 ? props.colors : [props.color];
           colors.forEach(function (colorValue) { return this$1.addColor(colorValue); });
           this.setActiveColor(0);
-          // Pass all the props into the component's state,
+          // Pass all the controls into the component's state,
           // Except we want to add the color object and make sure that refs aren't passed down to children
           this.state = Object.assign({}, props,
               {color: this.color,

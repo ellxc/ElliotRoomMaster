@@ -9,6 +9,11 @@ def plugin(_class):
     _class._name = _class.__name__
     return _class
 
+def controlview(_class):
+    _class._cv = True
+    _class._name = _class.__name__
+    return _class
+
 
 def asyncrunner(func, args):
     newloop = asyncio.new_event_loop()
@@ -67,7 +72,7 @@ def cron(cr=None, runlevel=0):
     return wrapper
 
 
-def onMqtt(topic=None, qos=0, runlevel=0):
+def onMqtt(topic=None, runlevel=0):
     def wrapper(_func):
         if inspect.isfunction(topic):
             name = topic.__name__
@@ -80,9 +85,9 @@ def onMqtt(topic=None, qos=0, runlevel=0):
             name = name[2:]
 
         if hasattr(_func, '_topics'):
-            _func._topics.append()
+            _func._topics.append(name)
             return _func
-        _func._topics = [(name, qos)]
+        _func._topics = [name]
         return wrapinner(_func, runlevel=runlevel)
 
     if inspect.isfunction(topic):
@@ -91,12 +96,12 @@ def onMqtt(topic=None, qos=0, runlevel=0):
         return wrapper
 
 
-def regex(topic, pattern, qos, flags=0, runlevel=0):
+def regex(pattern, flags=0, runlevel=0):
     def wrapper(_func):
         if hasattr(_func, '_regexes'):
-            _func._regexes.append((topic, pattern, flags))
+            _func._regexes.append((pattern, flags))
             return _func
-        _func._commands = [(topic, qos, pattern)]
+        _func._regexes = [(pattern, flags)]
         return wrapinner(_func, runlevel=runlevel)
 
     return wrapper

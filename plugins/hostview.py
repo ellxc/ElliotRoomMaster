@@ -13,11 +13,9 @@ class hostviewer:
 
     @www("/host")
     async def host_handler(self, request):
-        context = {"clues": [], "props": []}
-        for file in os.listdir("www/static/clues"):
-            context["clues"].append(clue(".".join(file.split(".")[:-1]), file, "img"))
+        context = {"controls": []}
 
-        for prop in self.e.props.values():
-            context["props"].append(prop.get_html())
+        for prop in self.e.controls.values():
+            context["controls"].append(prop.get_html())
         response = aiohttp_jinja2.render_template('host.html', request, context)
         return response
