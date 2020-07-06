@@ -17,7 +17,7 @@ import yaml
 from soundsystem import JackNPlayer
 import re
 from dataclasses import dataclass
-
+import sys, traceback
 
 @dataclass
 class Plugin:
@@ -86,7 +86,6 @@ class ERM:
         self.config = yaml.full_load(open(file, 'rb').read())
 
         if "speakers" in self.config:
-            print(self.config["speakers"])
 
             if "outputs" in self.config["speakers"]:
                 self.speakers = self.config["speakers"]["outputs"]
@@ -104,7 +103,6 @@ class ERM:
                             print("unknown speaker or group:", s)
                     self.speakergroups[group] = list(seen)
 
-        print(self.speakergroups)
 
         if "controls" in self.config:
             controlname: str
@@ -118,7 +116,6 @@ class ERM:
                     template = type if type.endswith(".html") else type+".html"
                     del controlconfig["type"]
                     if os.path.exists(os.path.dirname(os.path.abspath(__file__)) + "/controls/html/" + template):
-                        print(controlconfig)
                         self.controls[controlname] = self.controlviews["base"](controlname, template_file=template, e=self, **controlconfig)
                     else:
                         print("unknown control type: ", type)
@@ -144,7 +141,6 @@ class ERM:
         temp = importlib.machinery.SourceFileLoader(filename, os.path.dirname(
             os.path.abspath(__file__)) + "/controls/" + filename).load_module()
         for name, Class in inspect.getmembers(temp, lambda x: inspect.isclass(x) and hasattr(x, "_cv")):
-            print("found control view:", name)
             self.controlviews[name] = Class
 
     def load_plugin_file(self, plugin):
@@ -152,7 +148,6 @@ class ERM:
         temp = importlib.machinery.SourceFileLoader(plugin, os.path.dirname(
             os.path.abspath(__file__)) + "/plugins/" + plugin).load_module()
         for name, Class in inspect.getmembers(temp, lambda x: inspect.isclass(x) and hasattr(x, "_plugin")):
-            print("found class: " + name)
             handlers.append(Class)
             self.load_plugin(plugin, Class)
         return handlers
@@ -160,7 +155,6 @@ class ERM:
     def load_plugin(self, name, plugin, config=None):
         if config is None:
             config = {}
-        print("loading plugin: " + plugin.__name__ + " / " + name)
         crons = {}
         mqtts = {}
         services = {}
@@ -211,7 +205,6 @@ class ERM:
             while not self.broker.transitions.is_state("started", self.broker.transitions.model):
                 await asyncio.sleep(1)
 
-            print("starting mqtt in")
             await self.MQTT.subscribe([('game/#', QOS_2)]) # this needs to be here or it doesnt work?
             while 1:
                 message = await self.MQTT.deliver_message()
@@ -219,16 +212,16 @@ class ERM:
                 _, _, topic = packet.variable_header.topic_name.partition("/")
                 logging.info("%s %s => %s" % (packet.variable_header.topic_name, topic, str(packet.payload.data)))
                 if topic in self.mqtts:
-                    for _, f in self.mqtts[topic]:
+                    for f in self.mqtts[topic]:
                         self.loop.create_task(f(message))
                 for r, f in self.regexes:
                     g = r.match(topic)
                     if g is not None:
                         self.loop.create_task(f(message, g))
         except Exception as e:
-            print("error")
-            print(e)
-            #if self.mqtts
+            print("error!!!" + "-"*60)
+            traceback.print_exc(file=sys.stdout)
+            print("-" * 65)
 
 
     async def cronshim(self):
@@ -261,7 +254,6 @@ class ERM:
     def run(self):
         for file in os.listdir("plugins"):
             if file.endswith(".py"):
-                print("file: " + file)
                 self.load_plugin_file(file)
         for cv in os.listdir("controls"):
             if cv.endswith(".py"):
@@ -280,7 +272,6 @@ class ERM:
                      self.loop.create_task(self.connectMQTT()),
                      self.loop.create_task(self.cronshim()),
                      ] + self.services
-            print("tasks ", tasks)
             await asyncio.wait(tasks, loop=self.loop)
         except KeyboardInterrupt:
             raise

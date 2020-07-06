@@ -14,6 +14,15 @@
     {% endfor %}
     </select>
 
+    <section style="float: right">
+        <fieldset id="soundbox">
+            <legend>currently playing</legend>
+
+
+
+        </fieldset>
+    </section>
+
 
     <script>
         function choose(toselect) {
@@ -32,6 +41,30 @@
               }
             }
         }
+
+        function ensure_sound(soundid){
+            var foo = document.getElementById(soundid);
+            if (foo === null){
+                var bar = document.createElement("template");
+                bar.innerHTML = "<div id=\"sound_" + soundid + "\"><span style='float: left'>sound: "+ soundid + "</span>" +
+                    "<button onclick='emit(\"sounds/playpause\",\""+soundid+"\");'>play/pause</button>" +
+                        "<button onclick='emit(\"sounds/stop\",\""+soundid+"\");'>stop</button>" +
+                    "</div>";
+                foo = document.getElementById("soundbox").appendChild(bar.content.firstChild)
+            }
+            return foo;
+        }
+
+        function onsound_start(message) {
+            var foo = ensure_sound(message.payloadString);
+        }
+        tolisten.push(["sounds/playing", onsound_start]);
+
+        function onsound_end(message){
+            var foo = document.getElementById("sound_"+message.payloadString);
+            foo.remove()
+        }
+        tolisten.push(["sounds/finished", onsound_end])
 
     </script>
 </fieldset>
