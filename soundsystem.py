@@ -27,7 +27,11 @@ class JackNPlayer():
         self.sounddevices = sounddevices if sounddevices is not None else []
 
         self.before_callback = None
+        self.during_callback = None
+        self.during_callback_freq = 1
         self.after_callback = None
+
+        self.master_volume = 1.0
 
     def make_proccess(self):
         def process(frames):
@@ -36,7 +40,7 @@ class JackNPlayer():
                 for s in list(self.sounds.values()):
                     if not s.paused and not s.stopped:
                         try:
-                            s.outport.get_array()[:] = s.q.sync_q.get_nowait()
+                            s.outport.get_array()[:] = s.q.sync_q.get_nowait() * s.volume * self.master_volume
                             continue
                         except janus.SyncQueueEmpty:
                             pass
@@ -44,7 +48,8 @@ class JackNPlayer():
                         try:
                             s.q.sync_q.get_nowait()
                         except:
-                            pass
+                            if s.sound_id in self.sounds:
+                                del self.sounds[s.sound_id]
                     s.outport.get_array()[:] = np.zeros((self.blocksize,), dtype='float32')
             except Exception as e:
                 print("EXCEPTION!!!: ", type(e), e)
@@ -63,8 +68,10 @@ class JackNPlayer():
 
     async def playsound(self, ins, filename, loops=1, volume=1.0):
         await self.client_started.wait()
-        sound_id = filename.rpartition("/")[2] + "_" + str(random.choice(range(99999)))
-        outport = self.client.outports.register(sound_id)  # TODO : make actually unique
+        sound_id = filename.rpartition("/")[2] + "_" + str(random.choice(range(999)))
+        while sound_id in self.sounds:
+            sound_id = filename.rpartition("/")[2] + "_" + str(random.choice(range(999)))
+        outport = self.client.outports.register(sound_id)
         inports = self.client.get_ports(is_input=True, is_audio=True)
         for in_no in ins:
             outport.connect(inports[in_no])
@@ -83,7 +90,8 @@ class JackNPlayer():
         if self.after_callback is not None:
             await self.after_callback(s)
 
-        del self.sounds[sound_id]
+        if s.sound_id in self.sounds:
+            del self.sounds[s.sound_id]
 
     async def pausesound(self):
         pass
@@ -136,18 +144,24 @@ class sound():
     def restart(self):
         self.sf.seek(0)
 
+    def cleanup(self):
+        self.sf.close()
+        self.outport.unregister()
+
+
     async def run(self):
         for _ in range(self.loops) if self.loops > 0 else itertools.cycle([0]):
+            if self.stopped:
+                break
             for x in self.sf.blocks(**self.kwargs):
                 await self._paused.wait()
                 if self.stopped:
                     break
-                await self.q.async_q.put(x.T[0] * self.volume)
+                await self.q.async_q.put(x.T[0])
             self.sf.seek(0)
         print("file finished")
         await asyncio.sleep(1)
-        self.sf.close()
-        self.outport.unregister()
+        self.cleanup()
 
 
 if __name__=="__main__":

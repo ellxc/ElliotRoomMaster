@@ -36,10 +36,37 @@ class myPlugin2:
         else:
             print("not found")
 
+    @onMqtt("sounds/volume")
+    async def changevolume(self, message):
+        sounds, _, volume = message.publish_packet.payload.data.decode().rpartition(" ")
+        volume = int(volume)/100.0
+        sounds = sounds.split()
+        if sounds:
+            for sound_id in sounds:
+                if sound_id in self.e.player.sounds:
+                    self.e.player.sounds[sound_id].volume = volume
+        else:
+            self.e.player.master_volume = volume
 
-    @regex(r"sounds/clue/(?P<word>.+)")
-    async def clue(self, message, match):
-        file = "www/static/sounds/clues/" + message.publish_packet.payload.data.decode()
+
+
+    @regex(r"sounds/play/(?P<word>.+)")
+    async def play(self, message, match):
+        sound, _, options = message.publish_packet.payload.data.decode().partition(" ")
+        loops, _, options = options.partition(" ")
+        volume, _, options = options.partition(" ")
+
+        if not loops:
+            loops = 1
+        else:
+            loops = int(loops)
+
+        if not volume:
+            volume = 1.0
+        else:
+            volume = int(volume)/100.0
+
+        file = "www/static/sounds/" + sound
         if os.path.exists(file):
             speakers_ = match.group(1).split(",")
             speakers = set()
@@ -53,4 +80,4 @@ class myPlugin2:
             if speakers:
                 actual = [self.e.speakers.index(x) for x in speakers]
 
-                await self.e.player.playsound(actual, file)
+                await self.e.player.playsound(actual, file, loops=loops, volume=volume)

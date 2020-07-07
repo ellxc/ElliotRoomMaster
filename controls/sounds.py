@@ -20,7 +20,7 @@ class sounds(base):
         context = {"this": self, "sounds": [], "speakers": self.e.speakers, "speakergroups": self.e.speakergroups}
         for file in os.listdir("www/static/sounds/clues"):
             print(file)
-            context["sounds"].append(Sound(".".join(file.split(".")[:-1]), file))
+            context["sounds"].append(Sound(".".join(file.split(".")[:-1]), "clues/"+file))
 
         template = env.get_template(self.template_file)
         response = template.render(**context)

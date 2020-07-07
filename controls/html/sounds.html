@@ -1,7 +1,7 @@
 <fieldset>
     <legend>sounds</legend>
     {% for s in sounds %}
-        <button onclick="emit('sounds/clue/' + Array.from(document.getElementById('speakers').selectedOptions).map(x => x.value).join()  ,'{{s.src}}')">{{s.name}}</button>
+        <button onclick="emit('sounds/play/' + Array.from(document.getElementById('speakers').selectedOptions).map(x => x.value).join()  ,'{{s.src}} '+document.getElementById('loops').value)">{{s.name}}</button>
     {% endfor %}
     <select name="groups" id="groups" size="{{speakergroups|length}}">
     {% for spg, spks in speakergroups.items() %}
@@ -12,6 +12,14 @@
     {% for sp in speakers %}
         <option onclick="document.getElementById('groups').value = ''" value="{{sp}}">{{sp}}</option>
     {% endfor %}
+    </select>
+    <select name="loops" id="loops">
+        <option>-1</option>
+        <option>1</option>
+        <option>2</option>
+        <option>3</option>
+        <option>4</option>
+        <option>5</option>
     </select>
 
     <section style="float: right">
@@ -46,9 +54,10 @@
             var foo = document.getElementById(soundid);
             if (foo === null){
                 var bar = document.createElement("template");
-                bar.innerHTML = "<div id=\"sound_" + soundid + "\"><span style='float: left'>sound: "+ soundid + "</span>" +
+                bar.innerHTML = "<div id=\"sound_" + soundid + "\"><span style='float: left'>"+ soundid + "</span>" +
                     "<button onclick='emit(\"sounds/playpause\",\""+soundid+"\");'>play/pause</button>" +
                         "<button onclick='emit(\"sounds/stop\",\""+soundid+"\");'>stop</button>" +
+                        "<input type='range' min=\"0\" max=\"200\" value=\"100\" onchange='emit(\"sounds/volume\",\""+soundid+" \"+this.value)'>"+
                     "</div>";
                 foo = document.getElementById("soundbox").appendChild(bar.content.firstChild)
             }
