@@ -1,0 +1,13 @@
+[Unit]
+Description=jackd
+After=sound.target
+
+[Service]
+LimitRTPRIO=infinity
+LimitMEMLOCK=infinity
+ExecStart=jackd -t 2000 -d alsa -d hw:2 -n 10
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target

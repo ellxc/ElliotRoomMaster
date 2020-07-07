@@ -1,0 +1,11 @@
+[Unit]
+Description=alsa out
+After=jackd.server
+
+[Service]
+ExecStart=alsa_out -d hw:3 -c 8 -n 10 -q 2 -t 0
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
