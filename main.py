@@ -76,7 +76,7 @@ class ERM:
         self.plugins = {}
         self.controlviews = {}
         self.controls = {}
-        self.player = JackNPlayer()
+        self.player = JackNPlayer(loop=self.loop)
         self.speakers = []
         self.speakergroups = {}
         self.config = {}

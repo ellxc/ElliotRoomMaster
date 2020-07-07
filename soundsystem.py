@@ -12,7 +12,8 @@ class JackClientNotStarted(Exception):
 
 
 class JackNPlayer():
-    def __init__(self, clientname="foo", sounddevices=None, buffsize=20):
+    def __init__(self, clientname="foo", sounddevices=None, buffsize=20, loop=None):
+        self.loop = loop
         self.outs = {}
         self.soundfiles = {}
         self.insnouts = []
@@ -28,7 +29,7 @@ class JackNPlayer():
 
         self.before_callback = None
         self.during_callback = None
-        self.during_callback_freq = 1
+        self.during_callback_freq = 5
         self.after_callback = None
 
         self.master_volume = 1.0
@@ -84,7 +85,13 @@ class JackNPlayer():
         if self.before_callback is not None:
             await self.before_callback(s)
         try:
-            await s.run()
+            c = 0
+            async for p in s.run():
+                if self.during_callback is not None:
+                    n = round(p*100)
+                    if abs(n - c) > self.during_callback_freq:
+                        c = n
+                        self.loop.create_task(self.during_callback(s, p))
         except:
             traceback.print_exc(file=sys.stdout)
         if self.after_callback is not None:
@@ -115,6 +122,7 @@ class sound():
             self._paused.set()
 
         self._stop = False
+        self._current = 0
 
     def play(self):
         self._paused.set()
@@ -148,17 +156,25 @@ class sound():
         self.sf.close()
         self.outport.unregister()
 
+    @property
+    def progress(self):
+        return self._current/self.sf.frames
 
     async def run(self):
+        blocksize = self.kwargs.get("blocksize")
         for _ in range(self.loops) if self.loops > 0 else itertools.cycle([0]):
             if self.stopped:
                 break
-            for x in self.sf.blocks(**self.kwargs):
-                await self._paused.wait()
+            while self._current + blocksize < self.sf.frames:
                 if self.stopped:
                     break
-                await self.q.async_q.put(x.T[0])
+                self.sf.seek(self._current)
+                x = self.sf.read(blocksize)
+                await self.q.async_q.put(x)
+                self._current += blocksize
+                yield self.progress
             self.sf.seek(0)
+            self._current = 0
         print("file finished")
         await asyncio.sleep(1)
         self.cleanup()

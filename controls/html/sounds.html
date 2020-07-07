@@ -57,6 +57,9 @@
                 bar.innerHTML = "<div id=\"sound_" + soundid + "\"><span style='float: left'>"+ soundid + "</span>" +
                     "<button onclick='emit(\"sounds/playpause\",\""+soundid+"\");'>play/pause</button>" +
                         "<button onclick='emit(\"sounds/stop\",\""+soundid+"\");'>stop</button>" +
+                    "<div style=\"width: 150px; background-color: #ddd; height: 30px\">\n" +
+                        "<div style=\"width: 0%; background-color: #4caf50; text-align: center; line-height: 30px; color: white\" class=\"duration\">10%</div>\n" +
+                    "</div>\n" +
                         "<input type='range' min=\"0\" max=\"200\" value=\"100\" onchange='emit(\"sounds/volume\",\""+soundid+" \"+this.value)'>"+
                     "</div>";
                 foo = document.getElementById("soundbox").appendChild(bar.content.firstChild)
@@ -74,6 +77,24 @@
             foo.remove()
         }
         tolisten.push(["sounds/finished", onsound_end])
+
+        function onsound_duration(message){
+            var ss = message.payloadString.split(" ");
+            while (ss.length > 0){
+                var s = ss.shift();
+                var d = ss.shift();
+                var foo = document.getElementById("sound_"+s);
+                if (foo == null && d > 0){
+                    foo = ensure_sound(s)
+                }
+                if (foo !== null){
+                    var bar = foo.getElementsByClassName("duration")[0];
+                    bar.style.width = d + "%";
+                    bar.innerText = d + "%";
+                }
+            }
+        }
+        tolisten.push(["sounds/during", onsound_duration])
 
     </script>
 </fieldset>

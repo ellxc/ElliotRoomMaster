@@ -1,8 +1,9 @@
-from wrappers import plugin, onMqtt, regex
+from wrappers import plugin, onMqtt, regex, service
 from main import ERM
 import os
 from hbmqtt.mqtt.constants import QOS_2
 from soundsystem import sound
+import asyncio
 
 @plugin
 class myPlugin2:
@@ -16,6 +17,14 @@ class myPlugin2:
 
     async def soundend(self, s: sound):
         await self.e.MQTT.publish('game/sounds/finished', s.sound_id.encode(), qos=QOS_2)
+
+
+    @service
+    async def foo(self):
+        while 1:
+            if self.e.player.sounds:
+                await self.e.MQTT.publish('game/sounds/during', " ".join([s.sound_id + " " + str(round(s.progress*100)) for s in self.e.player.sounds.values() if not s.stopped]).encode(), qos=QOS_2)
+            await asyncio.sleep(0.2)
 
 
     @onMqtt("sounds/stop")
