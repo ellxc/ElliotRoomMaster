@@ -2,22 +2,41 @@ from aiohttp import web
 import asyncio
 import jinja2
 import aiohttp_jinja2
-from hbmqtt.broker import Broker
 import logging
 import datetime
 from collections import namedtuple
-from hbmqtt.client import MQTTClient, ClientException
+from hbmqtt.client import MQTTClient, ClientException, mqtt_connected
 from hbmqtt.mqtt.constants import QOS_2
 import crontab
 import inspect
 import importlib
 from collections import ChainMap
+import sys, traceback
 import os
 import yaml
-from soundsystem import JackNPlayer
+print(sys.platform)
+if sys.platform != "win32":
+    from soundsystem import JackNPlayer
 import re
 from dataclasses import dataclass
-import sys, traceback
+import socket
+
+
+def get_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        # doesn't even have to be reachable
+        s.connect(('10.255.255.255', 1))
+        IP = s.getsockname()[0]
+    except Exception:
+        IP = '127.0.0.1'
+    finally:
+        s.close()
+    return IP
+
+
+ip = get_ip()
+
 
 @dataclass
 class Plugin:
@@ -26,42 +45,14 @@ class Plugin:
     mqtts: dict
     services: dict
     regexes: list
+    onconfigs: list
 
 
 class ERM:
-    broker_config = {
-        'listeners': {
-            'default': {
-                'type': 'tcp',
-                'bind': '192.168.1.63:1883',
-            },
-            'ws-mqtt': {
-                'bind': '192.168.1.63:8080',
-                'type': 'ws',
-            },
-        },
-        'sys_interval': 10,
-        'auth': {
-            'allow-anonymous': True,
-            'password-file': os.path.join(os.path.dirname(os.path.realpath(__file__)), "passwd"),
-            'plugins': [
-                'auth_file', 'auth_anonymous'
-            ]
-
-        },
-        'topic-check': {
-            'enabled': True,
-            'plugins': [
-                'topic_taboo'
-            ]
-        }
-    }
-
     def __init__(self, loop=None):
         self.loop = loop
         if self.loop == None:
             self.loop = asyncio.get_event_loop()
-        self.broker = Broker(config=self.broker_config)
         self.app = web.Application()
         aiohttp_jinja2.setup(self.app, loader=jinja2.FileSystemLoader('./www/tmpl'))
         self.app.add_routes([web.static('/static', './www/static', show_index=True)])
@@ -69,14 +60,25 @@ class ERM:
         self.timergoing = False
         self.timer = datetime.timedelta(hours=1)
 
-        self.MQTT = MQTTClient()
+        self.MQTT = MQTTClient(config={
+            'keep_alive': 10,
+            'ping_delay': 1,
+            'default_qos': 0,
+            'default_retain': False,
+            'auto_reconnect': True,
+            'reconnect_max_interval': 10,
+            'reconnect_retries': 2,
+        })
 
         # self.crons = {"foo": (crontab.CronTab("*/1 * * * * * *"), [foo])}
         self.tosub = []
         self.plugins = {}
         self.controlviews = {}
         self.controls = {}
-        self.player = JackNPlayer(loop=self.loop)
+        if sys.platform != "win32":
+            self.player = JackNPlayer(loop=self.loop)
+            self.player2 = JackNPlayer(loop=self.loop)
+        self.speakertags = []
         self.speakers = []
         self.speakergroups = {}
         self.config = {}
@@ -88,7 +90,8 @@ class ERM:
         if "speakers" in self.config:
 
             if "outputs" in self.config["speakers"]:
-                self.speakers = self.config["speakers"]["outputs"]
+                self.speakertags = self.config["speakers"]["outputs"]
+                self.speakers = [x for x in self.config["speakers"]["outputs"] if not x.startswith("<<")]
 
             if "groups" in self.config["speakers"]:
                 for group, speakers in self.config["speakers"]["groups"]:
@@ -102,7 +105,6 @@ class ERM:
                         else:
                             print("unknown speaker or group:", s)
                     self.speakergroups[group] = list(seen)
-
 
         if "controls" in self.config:
             controlname: str
@@ -120,6 +122,9 @@ class ERM:
                     else:
                         print("unknown control type: ", type)
 
+        for f in self.onconfigs:
+            f()
+
 
     @property
     def crons(self):
@@ -132,6 +137,10 @@ class ERM:
     @property
     def services(self):
         return [x[1] for p in self.plugins.values() for k in p.services.values() for x in k]
+
+    @property
+    def onconfigs(self):
+        return [f for p in self.plugins.values() for f in p.onconfigs]
 
     @property
     def regexes(self):
@@ -160,6 +169,7 @@ class ERM:
         services = {}
         www = {}
         regexes = []
+        onconfigs = []
         instance = plugin(self)
         for _, func in inspect.getmembers(instance):
             if hasattr(func, "_crons"):
@@ -193,19 +203,22 @@ class ERM:
                         www[route] = func
                         self.app.router.add_get(route, func)
 
-        self.plugins[name] = Plugin(instance=instance, crons=crons, mqtts=mqtts, services=services, regexes=regexes)
+            if hasattr(func, "_onconfig"):
+                onconfigs.append(func)
+
+        self.plugins[name] = Plugin(instance=instance, crons=crons, mqtts=mqtts, services=services, regexes=regexes, onconfigs=onconfigs)
 
     async def connectMQTT(self):
-        while not self.broker.transitions.is_state("started", self.broker.transitions.model):
-            await asyncio.sleep(1)
-        await self.MQTT.connect('mqtt://192.168.1.63')
+        await self.MQTT.connect('mqtt://'+ip)
+        while 1:
+            if not self.MQTT._connected_state.is_set():
+                print("foo bar baz")
+                await self.MQTT.subscribe([('game/#', QOS_2)])
+            await asyncio.sleep(0.1)
 
     async def mqtt_in(self):
+        await self.MQTT.subscribe([('game/#', QOS_2)])
         try:
-            while not self.broker.transitions.is_state("started", self.broker.transitions.model):
-                await asyncio.sleep(1)
-
-            await self.MQTT.subscribe([('game/#', QOS_2)]) # this needs to be here or it doesnt work?
             while 1:
                 message = await self.MQTT.deliver_message()
                 packet = message.publish_packet
@@ -218,6 +231,8 @@ class ERM:
                     g = r.match(topic)
                     if g is not None:
                         self.loop.create_task(f(message, g))
+        except asyncio.TimeoutError as e:
+            pass
         except Exception as e:
             print("error!!!" + "-"*60)
             traceback.print_exc(file=sys.stdout)
@@ -260,18 +275,19 @@ class ERM:
                 self.load_control_view(cv)
 
         self.loadconfig()
-        self.loop.run_until_complete(self.start())
+        self.loop.create_task(self.start())
+        self.loop.run_forever()
 
     async def start(self):
         try:
             tasks = [
-                     self.loop.create_task(self.player.run()),
                      self.loop.create_task(web._run_app(self.app, port=80)),
-                     self.loop.create_task(self.broker.start()),
                      self.loop.create_task(self.mqtt_in()),
                      self.loop.create_task(self.connectMQTT()),
                      self.loop.create_task(self.cronshim()),
                      ] + self.services
+            if sys.platform != "win32":
+                tasks.append(self.loop.create_task(self.player.run()))
             await asyncio.wait(tasks, loop=self.loop)
         except KeyboardInterrupt:
             raise

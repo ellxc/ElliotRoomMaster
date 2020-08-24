@@ -16,7 +16,7 @@
 
     <section style="float: right">
         <fieldset id="batbox">
-            <legend>torch status</legend>
+            <legend>torch status <button onclick="baz('',0)">all off</button><button onclick="baz('',1)">all on</button><button onclick="baz('',3)">all force</button></legend>
         </fieldset>
     </section>
 
@@ -28,7 +28,10 @@
                 var bar = document.createElement("template");
                 bar.innerHTML = "<div id=\"" + id + "\">\n" +
                     "                <span style='float: left'>torch: "+ id + "</span><span class='status'></span><span class='timer' data-id='"+id+"' style='float: right'>seen <span class=\"minutes\">00</span>:<span class=\"seconds\">00</span> ago</span>" +
-                    "                <div>\n" +
+                    "                 <button onclick='baz(\""+id+"\",0);'>off</button>" +
+                    "                 <button onclick='baz(\""+id+"\",1);'>on</button>" +
+                    "                 <button onclick='baz(\""+id+"\",3);'>force</button>" +
+                    "                 <div>\n" +
                     "                    <div style=\"float: left; width: 150px; background-color: #ddd; height: 30px\">\n" +
                     "                        <div style=\"width: 10%; background-color: #4caf50; text-align: center; line-height: 30px; color: white\" class=\"lightlevel\">10%</div>\n" +
                     "                    </div>\n" +
@@ -42,6 +45,18 @@
             return foo;
         }
 
+
+
+        function baz(id, state){
+            if (id===""){
+                emit("torch/control", '{"state":'+state+'}');
+            }
+            else {
+                emit("torch/control", '{"id":"'+id+'","state":'+state+'}');
+            }
+        }
+
+
         var sec = 0;
         counters = {};
         function pad ( val ) { return val > 9 ? val : "0" + val; }
@@ -54,15 +69,27 @@
             });
         }, 1000);
 
-        function ontorchbat(message) {
-            var foo = ensure_torch(message.destinationName.split("/")[2]);
+        function ontorchstatus(message) {
 
+            console.log(message.payloadString);
+            var myObj = JSON.parse(message.payloadString.slice(0, message.payloadString.length - 1));
+            var foo = ensure_torch(myObj.id);
+
+
+            var batterylevel = myObj.battery;
+            var lightlevel = myObj.level;
 
             var battbar = foo.getElementsByClassName("battlevel")[0];
-            battbar.style.width = parseInt(message.payloadString) + "%";
-            battbar.innerText = parseInt(message.payloadString) + "%";
+            battbar.style.width = batterylevel + "%";
+            battbar.innerText = batterylevel + "%";
             var status = foo.getElementsByClassName("status")[0];
-            status.innerText = ""
+            status.innerText = "";
+
+            var lightbar = foo.getElementsByClassName("lightlevel")[0];
+            lightbar.style.width = (lightlevel/255) * 100 + "%";
+            lightbar.innerText = Math.round((lightlevel/255) * 100) + "%";
+            var statuss = foo.getElementsByClassName("status")[0];
+            statuss.innerText = "";
         }
 
         function ontorchlevel(message) {
@@ -83,9 +110,7 @@
 
         }
 
-        tolisten.push(["torch/+/batt", ontorchbat]);
-        tolisten.push(["torch/+/level", ontorchlevel]);
-        tolisten.push(["torch/+/disconnect", ontorchdisconnect]);
+        tolisten.push(["torch/+", ontorchstatus]);
 
     </script>
     {% endblock %}

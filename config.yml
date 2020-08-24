@@ -1,31 +1,58 @@
 speakers:
   outputs:
+    - << downstairs >>
     - one
     - two
     - three
     - four
     - five
+    - << slide >>
     - six
     - seven
+    - << upstairs >>
     - eight
     - nine
     - ten
+    - eleven
+    - << props >>
     - twelve
     - thirteen
     - fourteen
     - fifteen
     - sixteen
   groups: !!omap
-    - downstairs: [one, two, three, four]
-    - ramp: [five]
-    - upstairs: [six, seven, eight]
+    - downstairs: [one, two, three, four, five]
+    - ramp: [six, seven]
+    - upstairs: [eight, nine, ten, eleven]
     - soundtrack: [downstairs, upstairs, ramp]
-    - bigguy: [two, downstairs]
+    - foo: [two, four, six, eight, ten, twelve]
 controls:
   imgclues:
     type: clues
   sounds:
     type: sounds
+    soundtrack:
+      - name: begining
+        filename: main.ogg
+        speakers: soundtrack
+      - name: middle
+        filename: second.ogg
+        speakers: soundtrack
+      - name: end
+        filename: soundtrack.ogg
+        speakers: soundtrack
+      - name: endend
+        filename: soundtrack2.ogg
+        speakers: [1, 2, 3, 5]
+    buttons:
+      - name: start soundtrack
+        topic: soundtrack/start
+        data: ""
+        description: start the soundtrack duh
+      - name: skip next
+        topic: soundtrack/next
+        data: ""
+        description: next song
   fire:
     type: lighting
     buttons:
@@ -47,6 +74,33 @@ controls:
         topic: lights/control
         data: "off"
         description: turn the main lights off
+      - name: flame on
+        topic: lights/controljson
+        data: '{"create":[{"name":"fire","strip":0,"start":32,"end":64,"palette":"TODO"}]}'
+        description: start the fire
+  sand:
+    buttons:
+      - name: answer
+        topic: sand/overide
+        data: '{30:[1,1,1,1,240,90,150,210]}'
+        description: force correct
+      - name: ez on
+        topic: sand/ez
+        data: 'on'
+      - name: reset
+        topic: sand/reset
+        data: ''
+  lasors:
+    buttons:
+      - name: arm
+        topic: laser1/control
+        data: '{"armed":true}'
+      - name: force
+        topic: laser1/control
+        data: '{"forced":true}'
+      - name: reset
+        topic: laser1/control
+        data: '{"forced":false,"armed":false}'
   relay:
     type: relayboard
     topic-header: relay

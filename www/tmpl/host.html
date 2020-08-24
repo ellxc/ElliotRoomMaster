@@ -29,7 +29,7 @@
 <script>
     const client = new Paho.Client(location.hostname, 8080, "clientID" + Math.floor(Math.random() * 100));
     client.startTrace();
-    client.connect({onSuccess:onConnect});
+    client.connect({onSuccess:onConnect, cleanSession:false, reconnect:true});
     //client.disconnectedPublishing = true;
 
 

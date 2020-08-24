@@ -167,16 +167,21 @@
                 colours.push(colours[colours.length-4]);
                 colours.push(colours[colours.length-4]);
             }
-            var t = new Uint8Array(colours);
+            var myObj = {p: colours};
+            var myJSON = JSON.stringify(myObj);
+            //var t = new Uint8Array(colours);
             //var t = colorPicker.colors.map(c => [c.rgb.r, c.rgb.g, c.rgb.b].map(d => d & 0xFF).join("")).join(",");
            // console.log(t);
-            emit('fire/colour', t, qos=2, retained=true);
+            emit('fire/control', myJSON, qos=2, retained=true);
+            emit('torch/control', myJSON, qos=2, retained=true);
         }
 
 
 
         function showcurrent(message){
-            var f = Array.from(new Uint8Array(message.payloadBytes));
+            var myObj = JSON.parse(message.payloadString);
+            var f = myObj.p;
+           // var f = Array.from(new Uint8Array(message.payloadBytes));
 
             var cols = [];
             var locs = [];
@@ -201,11 +206,11 @@
                 colorPicker.addColor({r:r, g:g, b:b});
                 locs.push(255-loc);
             }
-            colorPicker.setActiveColor(colorPicker.colors.length-1);
+            //colorPicker.setActiveColor(colorPicker.colors.length-1);
             console.log("locs: " + locs);
             makeslider(locs);
             updatedisplay();
         }
 
-        tolisten.push(["fire/colour", showcurrent]);
+        tolisten.push(["fire/control", showcurrent]);
 </script>

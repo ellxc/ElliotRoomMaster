@@ -72,6 +72,11 @@ def cron(cr=None, runlevel=0):
     return wrapper
 
 
+def onconfig(_func):
+    _func._onconfig = True
+    return _func
+
+
 def onMqtt(topic=None, runlevel=0):
     def wrapper(_func):
         if inspect.isfunction(topic):

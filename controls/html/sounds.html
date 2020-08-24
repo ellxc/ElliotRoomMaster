@@ -1,8 +1,20 @@
 <fieldset>
     <legend>sounds</legend>
-    {% for s in sounds %}
-        <button onclick="emit('sounds/play/' + Array.from(document.getElementById('speakers').selectedOptions).map(x => x.value).join()  ,'{{s.src}} '+document.getElementById('loops').value)">{{s.name}}</button>
+
+    <input type='range' min="0" max="200" value="100" onchange='emit("sounds/volume",this.value)'>
+    {% for b in this.buttons %}
+        <button title="{{b.description}}" onclick='{{b.onclick|e}}'>{{b.name}}</button>
     {% endfor %}
+    <select name="sounds" id="sounds" size="{{sounds|length + effects|length + 2}}">
+        <option disabled>─────clues─────</option>
+    {% for s in clues %}
+        <option value="{{s.src}}">{{s.name}}</option>
+    {% endfor %}
+        <option disabled>────effects────</option>
+    {% for s in effects %}
+        <option value="{{s.src}}">{{s.name}}</option>
+    {% endfor %}
+    </select>
     <select name="groups" id="groups" size="{{speakergroups|length}}">
     {% for spg, spks in speakergroups.items() %}
         <option value="{{spg}}" onclick="choose(['{{spks|join('\',\'')}}'])">{{spg}}</option>
@@ -10,7 +22,7 @@
     </select>
     <select name="speakers" id="speakers" size="{{speakers|length}}" multiple>
     {% for sp in speakers %}
-        <option onclick="document.getElementById('groups').value = ''" value="{{sp}}">{{sp}}</option>
+        <option onclick="" value="{{sp}}" {% if sp | trim | first == '<' %} disabled {% endif %}>{{sp}}</option>
     {% endfor %}
     </select>
     <select name="loops" id="loops">
@@ -21,6 +33,10 @@
         <option>4</option>
         <option>5</option>
     </select>
+    <label for="loops">loops</label>
+    <input type="checkbox" id="fadein" name="fadein" checked>
+    <label for="fadein">fade in</label>
+    <button onclick="emit('sounds/play',  JSON.stringify({filename:document.getElementById('sounds').value, speakers:Array.from(document.getElementById('speakers').selectedOptions).map(x => x.value), loops:document.getElementById('loops').value, fadein:document.getElementById('fadein').checked}))">play</button>
 
     <section style="float: right">
         <fieldset id="soundbox">
@@ -33,6 +49,52 @@
 
 
     <script>
+        window.onmousedown = function (e) {
+        var el = e.target;
+            if (el.tagName.toLowerCase() == 'option' && el.parentNode.hasAttribute('multiple')) {
+                if (!el.hasAttribute('disabled')) {
+                    e.preventDefault();
+                    document.getElementById('groups').value = '';
+                    // toggle selection
+                    if (el.hasAttribute('selected')) el.removeAttribute('selected');
+                    else el.setAttribute('selected', '');
+
+                    // hack to correct buggy behavior
+                    var select = el.parentNode.cloneNode(true);
+                    el.parentNode.parentNode.replaceChild(select, el.parentNode);
+                }
+                else {
+                    var found = false;
+                    var flipway = false;
+                    var flipwayset = false;
+                    for ( var i = 0, l = el.parentNode.options.length, o; i < l; i++ )
+                    {
+                        if (!found){
+                            if (el.parentNode.options[i] === el) {
+                                found = true;
+                            }
+                            continue;
+                        }
+                        if (found && el.parentNode.options[i].hasAttribute('disabled')){
+                            break;
+                        }
+                        if (!flipwayset){
+                            flipwayset = true;
+                            flipway = !el.parentNode.options[i].hasAttribute('selected');
+                        }
+
+                        if (flipway){
+                            el.parentNode.options[i].setAttribute('selected', '');
+                        }
+                        else {
+                            if (el.parentNode.options[i].hasAttribute('selected'))
+                            el.parentNode.options[i].removeAttribute('selected');
+                        }
+                    }
+                }
+            }
+        };
+
         function choose(toselect) {
             document.getElementById('speakers')
             var select = document.getElementById( 'speakers' );
@@ -42,10 +104,10 @@
               o = select.options[i];
               if ( toselect.indexOf( o.text ) != -1 )
               {
-                o.selected = true;
+                o.setAttribute('selected', '');
               }
               else {
-                  o.selected = false;
+                  o.removeAttribute('selected');
               }
             }
         }
@@ -54,9 +116,11 @@
             var foo = document.getElementById(soundid);
             if (foo === null){
                 var bar = document.createElement("template");
-                bar.innerHTML = "<div id=\"sound_" + soundid + "\"><span style='float: left'>"+ soundid + "</span>" +
+                bar.innerHTML = "<div id=\"sound_" + soundid + "\"><span>"+ soundid + "</span>" +
                     "<button onclick='emit(\"sounds/playpause\",\""+soundid+"\");'>play/pause</button>" +
                         "<button onclick='emit(\"sounds/stop\",\""+soundid+"\");'>stop</button>" +
+                        "<button onclick='emit(\"sounds/fadeout\",\""+soundid+"\");'>fadeout</button>" +
+                        "<button onclick='emit(\"sounds/fadein\",\""+soundid+"\");'>fadein</button>" +
                     "<div style=\"width: 150px; background-color: #ddd; height: 30px\">\n" +
                         "<div style=\"width: 0%; background-color: #4caf50; text-align: center; line-height: 30px; color: white\" class=\"duration\">10%</div>\n" +
                     "</div>\n" +
