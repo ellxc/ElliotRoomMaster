@@ -8,7 +8,6 @@ import janus
 import random
 import traceback, sys
 import time
-from contextlib import asynccontextmanager
 
 
 class JackClientNotStarted(Exception):
@@ -35,7 +34,7 @@ class JackNPlayer:
         self.during_callback = None
         self.during_callback_freq = 5
         self.after_callback = None
-        self.inports = []
+
         self.master_volume = 1.0
 
     def make_proccess(self):
@@ -44,7 +43,6 @@ class JackNPlayer:
                 s: sound
                 for s in list(self.sounds.values()):
                     if not s.paused and not s.stopped and s.volume > 0.1:
-                        q : janus.Queue
                         for o, q in itertools.zip_longest(s.outports, s.qs, fillvalue=None):
                             try:
                                 if o is not None and q is not None:
@@ -53,12 +51,12 @@ class JackNPlayer:
                             except janus.SyncQueueEmpty:
                                 pass
                         continue
-                    if s.stopped or s.paused:
+                    if s.stopped:
                         try:
                             for q in s.qs:
                                 q.sync_q.get_nowait()
                         except janus.SyncQueueEmpty:
-                            if s.stopped and s.sound_id in self.sounds:
+                            if s.sound_id in self.sounds:
                                 del self.sounds[s.sound_id]
                     for o in s.outports:
                         if o is not None:
@@ -77,10 +75,8 @@ class JackNPlayer:
         self.client.set_process_callback(self.make_proccess())
         self.client.activate()
         self.client_started.set()
-        # self.inports = self.client.get_ports(is_input=True, is_audio=True)
 
-    @asynccontextmanager
-    async def playsound(self, ins, filename, loops=1, volume=1.0, key=None, fadein=False, fadetime=1, start_paused=False):
+    async def playsound(self, ins, filename, loops=1, volume=1.0, key=None, fadein=False, fadetime=1):
         await self.client_started.wait()
         if key is None:
             sound_id = filename.rpartition("/")[2] + "_" + str(random.choice(range(999)))
@@ -102,31 +98,27 @@ class JackNPlayer:
                 outports.append(None)
                 qs.append(None)
         s = sound(filename, qs, outports, sound_id=sound_id, loops=loops, volume=volume, blocksize=self.blocksize,
-                  dtype='float32', always_2d=True, fill_value=0, fadein=fadein, fadetime=fadetime, start_paused=start_paused)
+                  dtype='float32', always_2d=True, fill_value=0, fadein=fadein, fadetime=fadetime)
 
         self.sounds[sound_id] = s
 
         if self.before_callback is not None:
             await self.before_callback(s)
         try:
-            async def inner():
-                c = 0
-                async for p in s.run():
-                    if self.during_callback is not None:
-                        n = round(p*100)
-                        if abs(n - c) > self.during_callback_freq:
-                            c = n
-                            self.loop.create_task(self.during_callback(s, p))
-            yield inner(), s
+            c = 0
+            async for p in s.run():
+                if self.during_callback is not None:
+                    n = round(p*100)
+                    if abs(n - c) > self.during_callback_freq:
+                        c = n
+                        self.loop.create_task(self.during_callback(s, p))
         except:
             traceback.print_exc(file=sys.stdout)
-        finally:
-            print("sound end final")
-            if self.after_callback is not None:
-                await self.after_callback(s)
+        if self.after_callback is not None:
+            await self.after_callback(s)
 
-            if s.sound_id in self.sounds:
-                del self.sounds[s.sound_id]
+        if s.sound_id in self.sounds:
+            del self.sounds[s.sound_id]
 
     async def pausesound(self):
         pass
@@ -235,26 +227,12 @@ class sound():
     def progress(self):
         return self._current/self.sf.frames
 
-    @property
-    def duration(self):
-        return self.sf.frames/self.sf.samplerate
-
-    @property
-    def currenttime(self):
-        return self._current/self.sf.samplerate
-
     async def run(self):
-        if len(self.qs) == 0:
-            print("no speakers setup!")
-            return
+        print(self.qs, self.outports)
         blocksize = self.kwargs.get("blocksize")
         for _ in range(self.loops) if self.loops > 0 else itertools.cycle([0]):
             if self.stopped:
                 break
-            if self.paused:
-                await asyncio.sleep(0.1)
-                yield self.progress
-                continue
             while self._current + blocksize < self.sf.frames:
                 if self.stopped:
                     break
@@ -273,10 +251,10 @@ class sound():
         self.cleanup()
 
 
-if __name__ == "__main__":
+if __name__=="__main__":
     l = asyncio.get_event_loop()
     b = JackNPlayer()
     l.create_task(b.run())
-    l.create_task(b.playsound([[0, 1, 3, 7]], "tc.ogg", loops=2))
-    l.create_task(b.playsound([[8, 9, 12, 13]], "tp.ogg", volume=2))
+    l.create_task(b.playsound([0, 1, 3, 7], "tc.ogg", loops=2))
+    l.create_task(b.playsound([8, 9, 12, 13], "tp.ogg", volume=2))
     l.run_forever()

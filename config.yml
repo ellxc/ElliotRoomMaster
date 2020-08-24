@@ -41,9 +41,12 @@ controls:
       - name: end
         filename: soundtrack.ogg
         speakers: soundtrack
+      - name: begining
+        filename: main.ogg
+        speakers: soundtrack
       - name: endend
         filename: soundtrack2.ogg
-        speakers: [1, 2, 3, 5]
+        speakers: [one, 2, 3, 5]
     buttons:
       - name: start soundtrack
         topic: soundtrack/start

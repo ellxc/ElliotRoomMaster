@@ -60,8 +60,10 @@ if sys.platform != "win32":
                                     elif speaker in self.e.speakers:
                                         speakers.add(speaker)
                                 actual = [[self.e.speakers.index(x) for x in speakers]]
-
-                            self.q.append(("www/static/sounds/soundtracks/"+s["filename"], actual))
+                            if speakers:
+                                self.q.append(("www/static/sounds/soundtracks/"+s["filename"], actual))
+                            else:
+                                print("INVALID SPEAKERS CONFIG")
 
         async def soundstart(self, s: sound):
             await self.e.MQTT.publish('game/sounds/playing', s.sound_id.encode(), qos=QOS_2)
@@ -74,7 +76,7 @@ if sys.platform != "win32":
         async def foo(self):
             while 1:
                 if self.e.player.sounds:
-                    x = " ".join([s.sound_id + " " + str(round(s.progress*100)) for s in self.e.player.sounds.values()
+                    x = " ".join([s.sound_id + " " + str(s.progress*100) for s in self.e.player.sounds.values()
                                   if not s.stopped and not s.paused])
                     if x:
                         await self.e.MQTT.publish('game/sounds/during', x.encode(), qos=QOS_2)
@@ -147,28 +149,16 @@ if sys.platform != "win32":
             second = None
             s: sound
             r, s = await type(first).__aenter__(first)
+            self.e.loop.create_task(r)
             r2, s2 = None, None
             while 1:
                 stop = False
 
-                if r is not None:
-                    try:
-                        await r.__anext__()
-                    except StopAsyncIteration:
-
-                        stop = True
-                else:
+                if s is None:
                     print("end of queue")
                     self.qpos = 0
-                    break
-
-                if r2 is not None:
-                    try:
-                        await r2.__anext__()
-                    except StopAsyncIteration:
-                        pass  # THIS SHOULD NEVER HAPPEN
-
-                if s is not None and (s.stopped or stop or self.skipping and s.paused):
+                    return
+                elif s.stopped or self.skipping and s.paused:
                     s.stop()
                     print("stopping first")
                     await type(first).__aexit__(first, None, None, None)
@@ -179,11 +169,6 @@ if sys.platform != "win32":
                     self.play_next.set()
                     self.skipping = False
 
-                if r2 is not None:
-                    try:
-                        await r2.__anext__()
-                    except StopAsyncIteration:
-                        pass  # THIS SHOULD NEVER HAPPEN
                 if not self.play_next.is_set() and not self.skipping:
                     if self.qpos + 1 >= len(self.q):
                         print("can't skip to nothing!")
@@ -200,6 +185,8 @@ if sys.platform != "win32":
                     second = self.e.player.playsound(self.q[self.qpos][1], self.q[self.qpos][0],
                                                      loops=-1, volume=1, fadein=True, start_paused=False)
                     r2, s2 = await type(second).__aenter__(second)
+                    self.e.loop.create_task(r2)
+                await asyncio.sleep(0.2)
 
         @onMqtt("soundtrack/next")
         async def ASDSDFDSA(self, message):
@@ -236,5 +223,4 @@ if sys.platform != "win32":
                     actual = [self.e.speakers.index(x) for x in speakers]
                     async with self.e.player.playsound([actual], file, loops=loops, volume=volume, fadein=fadein,
                                                        fadetime=fadeintime, start_paused=startpaused) as (r, s):
-                        async for p in r:
-                            pass
+                        await r
